@@ -1,0 +1,169 @@
+services:
+  # ── Databases ──────────────────────────────────────────
+  student-db:
+    image: postgres:15
+    container_name: student_db
+    environment:
+      POSTGRES_DB: edutrack_students
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - student_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  attendance-db:
+    image: postgres:15
+    container_name: attendance_db
+    environment:
+      POSTGRES_DB: edutrack_attendance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - attendance_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  grades-db:
+    image: postgres:15
+    container_name: grades_db
+    environment:
+      POSTGRES_DB: edutrack_grades
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - grades_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-db:
+    image: postgres:15
+    container_name: auth_db
+    environment:
+      POSTGRES_DB: edutrack_auth
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  notification-db:
+    image: postgres:15
+    container_name: notification_db
+    environment:
+      POSTGRES_DB: edutrack_notifications
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: edutrack_redis
+
+  # ── Microservices ───────────────────────────────────────
+  student-service:
+    build: ./student-service
+    container_name: student_service
+    environment:
+      DB_NAME: edutrack_students
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: student-db
+      DB_PORT: 5432
+    depends_on:
+      student-db:
+        condition: service_healthy
+
+  attendance-service:
+    build: ./attendance-service
+    container_name: attendance_service
+    environment:
+      DB_NAME: edutrack_attendance
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: attendance-db
+      DB_PORT: 5432
+    depends_on:
+      attendance-db:
+        condition: service_healthy
+
+  grades-service:
+    build: ./grades-service
+    container_name: grades_service
+    environment:
+      DB_NAME: edutrack_grades
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: grades-db
+      DB_PORT: 5432
+    depends_on:
+      grades-db:
+        condition: service_healthy
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth_service
+    environment:
+      DB_NAME: edutrack_auth
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: auth-db
+      DB_PORT: 5432
+    depends_on:
+      auth-db:
+        condition: service_healthy
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification_service
+    environment:
+      DB_NAME: edutrack_notifications
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: notification-db
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      notification-db:
+        condition: service_healthy
+
+  # ── API Gateway ─────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: edutrack_gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - student-service
+      - attendance-service
+      - grades-service
+      - auth-service
+      - notification-service
+
+volumes:
+  student_db_data:
+  attendance_db_data:
+  grades_db_data:
+  auth_db_data:
+  notification_db_data:
