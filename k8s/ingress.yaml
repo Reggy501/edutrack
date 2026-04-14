@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edutrack-ingress
+  namespace: edutrack
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+spec:
+  rules:
+  - host: ""
+    http:
+      paths:
+      - path: /api/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 8000
+      - path: /api/students
+        pathType: Prefix
+        backend:
+          service:
+            name: student-service
+            port:
+              number: 8000
+      - path: /api/attendance
+        pathType: Prefix
+        backend:
+          service:
+            name: attendance-service
+            port:
+              number: 8000
+      - path: /api/grades
+        pathType: Prefix
+        backend:
+          service:
+            name: grades-service
+            port:
+              number: 8000
+      - path: /api/notifications
+        pathType: Prefix
+        backend:
+          service:
+            name: notification-service
+            port:
+              number: 8000
