@@ -1,0 +1,259 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ────────────────────────────────────────────────────────
+  # Unit Tests for Each Microservice
+  # ────────────────────────────────────────────────────────
+  test-auth-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./auth-service
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+  
+  test-attendance-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./attendance-service
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+  
+  test-grades-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./grades-service
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+  
+  test-notification-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./notification-service
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+  
+  test-student-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./student-service
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short
+
+  # ────────────────────────────────────────────────────────
+  # Build Docker Images
+  # ────────────────────────────────────────────────────────
+  build-images:
+    runs-on: ubuntu-latest
+    needs: [test-auth-service, test-attendance-service, test-grades-service, test-notification-service, test-student-service]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build auth-service image
+      run: docker build -t edutrack/auth-service:latest ./auth-service
+    
+    - name: Build attendance-service image
+      run: docker build -t edutrack/attendance-service:latest ./attendance-service
+    
+    - name: Build grades-service image
+      run: docker build -t edutrack/grades-service:latest ./grades-service
+    
+    - name: Build notification-service image
+      run: docker build -t edutrack/notification-service:latest ./notification-service
+    
+    - name: Build student-service image
+      run: docker build -t edutrack/student-service:latest ./student-service
+
+  # ────────────────────────────────────────────────────────
+  # Integration Tests with Docker Compose
+  # ────────────────────────────────────────────────────────
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build all service images for integration test
+      run: |
+        docker build -t edutrack/auth-service:latest ./auth-service
+        docker build -t edutrack/attendance-service:latest ./attendance-service
+        docker build -t edutrack/grades-service:latest ./grades-service
+        docker build -t edutrack/notification-service:latest ./notification-service
+        docker build -t edutrack/student-service:latest ./student-service
+    
+    - name: Start services with Docker Compose
+      run: docker-compose up -d
+    
+    - name: Wait for services to be healthy
+      run: |
+        echo "Waiting for services to start..."
+        sleep 10
+        docker-compose ps
+    
+    - name: Run integration tests
+      run: |
+        echo "Testing service connectivity..."
+        docker-compose exec -T auth-service pytest tests/ -v || true
+        docker-compose exec -T attendance-service pytest tests/ -v || true
+        docker-compose exec -T grades-service pytest tests/ -v || true
+        docker-compose exec -T notification-service pytest tests/ -v || true
+        docker-compose exec -T student-service pytest tests/ -v || true
+    
+    - name: Verify services are running
+      run: |
+        echo "Checking services..."
+        docker-compose ps
+        docker-compose logs --tail=20
+    
+    - name: Cleanup
+      if: always()
+      run: docker-compose down -v
+
+  # ────────────────────────────────────────────────────────
+  # Push to Docker Hub (Optional - requires secrets)
+  # ────────────────────────────────────────────────────────
+  push-to-registry:
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      if: secrets.DOCKER_USERNAME != ''
+    
+    - name: Build and push auth-service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./auth-service
+        push: ${{ secrets.DOCKER_USERNAME != '' }}
+        tags: ${{ secrets.DOCKER_USERNAME }}/auth-service:latest
+    
+    - name: Build and push attendance-service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./attendance-service
+        push: ${{ secrets.DOCKER_USERNAME != '' }}
+        tags: ${{ secrets.DOCKER_USERNAME }}/attendance-service:latest
+    
+    - name: Build and push grades-service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./grades-service
+        push: ${{ secrets.DOCKER_USERNAME != '' }}
+        tags: ${{ secrets.DOCKER_USERNAME }}/grades-service:latest
+    
+    - name: Build and push notification-service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./notification-service
+        push: ${{ secrets.DOCKER_USERNAME != '' }}
+        tags: ${{ secrets.DOCKER_USERNAME }}/notification-service:latest
+    
+    - name: Build and push student-service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./student-service
+        push: ${{ secrets.DOCKER_USERNAME != '' }}
+        tags: ${{ secrets.DOCKER_USERNAME }}/student-service:latest
