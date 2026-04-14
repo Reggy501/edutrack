@@ -31,6 +31,7 @@ jobs:
     
     - name: Run tests
       run: |
+        export DJANGO_SETTINGS_MODULE=config.settings
         pytest tests/ -v --tb=short
   
   test-attendance-service:
@@ -54,6 +55,7 @@ jobs:
     
     - name: Run tests
       run: |
+        export DJANGO_SETTINGS_MODULE=config.settings
         pytest tests/ -v --tb=short
   
   test-grades-service:
@@ -77,6 +79,7 @@ jobs:
     
     - name: Run tests
       run: |
+        export DJANGO_SETTINGS_MODULE=config.settings
         pytest tests/ -v --tb=short
   
   test-notification-service:
@@ -100,6 +103,7 @@ jobs:
     
     - name: Run tests
       run: |
+        export DJANGO_SETTINGS_MODULE=config.settings
         pytest tests/ -v --tb=short
   
   test-student-service:
@@ -123,6 +127,7 @@ jobs:
     
     - name: Run tests
       run: |
+        export DJANGO_SETTINGS_MODULE=config.settings
         pytest tests/ -v --tb=short
 
   # ────────────────────────────────────────────────────────
@@ -186,11 +191,11 @@ jobs:
     - name: Run integration tests
       run: |
         echo "Testing service connectivity..."
-        docker-compose exec -T auth-service pytest tests/ -v || true
-        docker-compose exec -T attendance-service pytest tests/ -v || true
-        docker-compose exec -T grades-service pytest tests/ -v || true
-        docker-compose exec -T notification-service pytest tests/ -v || true
-        docker-compose exec -T student-service pytest tests/ -v || true
+        docker-compose exec -T -e DJANGO_SETTINGS_MODULE=config.settings auth-service pytest tests/ -v || true
+        docker-compose exec -T -e DJANGO_SETTINGS_MODULE=config.settings attendance-service pytest tests/ -v || true
+        docker-compose exec -T -e DJANGO_SETTINGS_MODULE=config.settings grades-service pytest tests/ -v || true
+        docker-compose exec -T -e DJANGO_SETTINGS_MODULE=config.settings notification-service pytest tests/ -v || true
+        docker-compose exec -T -e DJANGO_SETTINGS_MODULE=config.settings student-service pytest tests/ -v || true
     
     - name: Verify services are running
       run: |
